@@ -34,8 +34,10 @@ use aiken/transaction/value
 type VerificationKeyHash = Hash<Blake2b_224, VerificationKey>
 
 type LockDatum {
-  // Owner who can reclaim if bridge fails
-  owner: VerificationKeyHash,
+  // Community multisig owners who can reclaim if bridge fails (List of PKH)
+  owners: List<VerificationKeyHash>,
+  // Required number of signatures from owners
+  required_owner_signatures: Int,
   // Midnight address to receive $midoink
   midnight_recipient: ByteArray,
   // Amount locked (for verification)
@@ -50,7 +52,7 @@ type LockRedeemer {
     burn_tx_hash: ByteArray,
     validator_signatures: List<ByteArray>,
   }
-  // Emergency unlock by owner (after timeout)
+  // Emergency unlock by community owners (after timeout)
   EmergencyUnlock
 }
 
@@ -94,12 +96,13 @@ validator lock {
       }
       
       EmergencyUnlock -> {
-        // Only owner can emergency unlock after timeout
-        let signed_by_owner = list.has(tx.extra_signatories, lock_datum.owner)
+        // Community multisig emergency unlock after timeout
+        let signed_by_owners = count_owner_signatures(tx, lock_datum.owners)
         let current_slot = get_current_slot(tx)
         let timeout_passed = current_slot > lock_datum.locked_at + emergency_timeout
         
-        signed_by_owner && timeout_passed
+        // Must have enough owner signatures AND timeout passed
+        (signed_by_owners >= lock_datum.required_owner_signatures) && timeout_passed
       }
     }
   }
@@ -112,6 +115,10 @@ validator lock {
 fn count_valid_signatures(tx: Transaction, _signatures: List<ByteArray>) -> Int {
   let validators = [validator_1, validator_2, validator_3]
   list.count(validators, fn(v) { list.has(tx.extra_signatories, v) })
+}
+
+fn count_owner_signatures(tx: Transaction, owners: List<VerificationKeyHash>) -> Int {
+  list.count(owners, fn(o) { list.has(tx.extra_signatories, o) })
 }
 
 fn get_current_slot(tx: Transaction) -> Int {

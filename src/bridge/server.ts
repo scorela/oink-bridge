@@ -90,8 +90,9 @@ app.post('/wrap/initiate', (req: Request, res: Response) => {
       instructions: {
         step1: `Send ${parsed.amount} $oink to lock address`,
         step2: 'Include your Midnight address in transaction metadata',
-        step3: 'Wait for 15 confirmations',
-        step4: 'Call /wrap/complete with lock tx hash',
+        step3: 'Set Datum with Community Multisig keys for Emergency Unlock',
+        step4: 'Wait for 15 confirmations',
+        step5: 'Call /wrap/complete with lock tx hash',
       },
       midnightRecipient: parsed.midnightAddress,
       amount: parsed.amount.toString(),

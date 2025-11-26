@@ -154,6 +154,7 @@ config.ts    100%    ✅
 | [Architecture](docs/ARCHITECTURE.md) | System design & code structure |
 | [Deployment](docs/DEPLOYMENT.md) | Deploy to testnet & mainnet |
 | [Economics](docs/ECONOMICS.md) | Token economics & fee model |
+| [Governance](docs/GOVERNANCE_ROADMAP.md) | 🛡️ Security & Decentralization Roadmap |
 | [API Reference](docs/API.md) | REST API documentation |
 | [Testnet/Mainnet](docs/TESTNET_MAINNET.md) | Network-specific guides |
 
@@ -161,7 +162,7 @@ config.ts    100%    ✅
 
 - **1:1 Peg**: Every $midoink is backed by exactly 1 locked $oink
 - **2-of-3 Multisig**: Validators must approve all operations
-- **Emergency Unlock**: 7-day timeout for owner recovery
+- **Emergency Unlock**: 7-day timeout for Community Multisig recovery
 - **Zero-Knowledge**: Private transfers on Midnight
 
 ## 📊 Test Coverage

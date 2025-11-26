@@ -9,7 +9,7 @@
 │  │                    AIKEN LOCK CONTRACT                                  │ │
 │  │  ┌──────────────┐  ┌──────────────┐  ┌──────────────────────────────┐ │ │
 │  │  │   Lock       │  │   Unlock     │  │   Emergency Unlock           │ │ │
-│  │  │   $oink   │  │   (2-of-3)   │  │   (owner after 7 days)       │ │ │
+│  │  │   $oink   │  │   (2-of-3)   │  │   (community multisig)       │ │ │
 │  │  └──────────────┘  └──────────────┘  └──────────────────────────────┘ │ │
 │  └────────────────────────────────────────────────────────────────────────┘ │
 └─────────────────────────────────────────────────────────────────────────────┘
@@ -123,7 +123,7 @@ Language: Aiken (functional, type-safe)
 Features:
   - Lock with Midnight recipient metadata
   - 2-of-3 multisig unlock
-  - Emergency unlock after 7-day timeout
+  - Emergency unlock after 7-day timeout (Community Multisig)
 ```
 
 ### 2. Midnight Mint Contract (`midoink.compact`)
@@ -209,6 +209,6 @@ Responsibilities:
 | Smart Contracts | Formal verification, audit required |
 | Bridge Validators | 2-of-3 multisig, geographic distribution |
 | Peg Integrity | Assertion on every state change |
-| Emergency Recovery | 7-day timeout unlock by owner |
+| Emergency Recovery | 7-day timeout unlock by Community Multisig |
 | Private Transfers | Zero-knowledge proofs on Midnight |
 
