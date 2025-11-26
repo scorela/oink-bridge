@@ -1,12 +1,12 @@
 {
-  "name": "oink-midoink-bridge",
+  "name": "oink-bridge",
   "version": "1.0.0",
   "description": "Cross-chain bridge: $oink (Cardano) ↔ $midoink (Midnight) with 1:1 peg",
   "license": "MIT",
-  "author": "oink team",
+  "author": "scorela",
   "repository": {
     "type": "git",
-    "url": "https://github.com/scorela/oink-midoink-bridge.git"
+    "url": "https://github.com/scorela/oink-bridge.git"
   },
   "type": "module",
   "main": "dist/bridge/server.js",
