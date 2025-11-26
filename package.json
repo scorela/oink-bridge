@@ -1,0 +1,47 @@
+{
+  "name": "oink-midoink-bridge",
+  "version": "1.0.0",
+  "description": "Cross-chain bridge: $oink (Cardano) ↔ $midoink (Midnight) with 1:1 peg",
+  "license": "MIT",
+  "author": "oink team",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/scorela/oink-midoink-bridge.git"
+  },
+  "type": "module",
+  "main": "dist/bridge/server.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/bridge/server.js",
+    "dev": "tsx src/bridge/server.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "bridge:start": "tsx src/bridge/server.ts",
+    "cli:wrap": "tsx src/cli/wrap.ts",
+    "cli:unwrap": "tsx src/cli/unwrap.ts",
+    "cli:status": "tsx src/cli/status.ts",
+    "simulate": "tsx src/simulation/run.ts",
+    "verify": "tsx src/simulation/verify.ts",
+    "docker:build": "docker build -t oink-midoink-bridge .",
+    "docker:start": "./start.sh start",
+    "docker:stop": "./start.sh stop"
+  },
+  "dependencies": {
+    "@emurgo/cardano-serialization-lib-nodejs": "^11.5.0",
+    "@midnight-ntwrk/compact-runtime": "^0.9.0",
+    "@midnight-ntwrk/midnight-js-contracts": "^3.0.0-alpha.5",
+    "@midnight-ntwrk/wallet": "^5.0.0",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "zod": "^3.22.4"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/node": "^20.10.0",
+    "@vitest/coverage-v8": "^1.6.0",
+    "tsx": "^4.6.0",
+    "typescript": "^5.3.0",
+    "vitest": "^1.0.0"
+  }
+}

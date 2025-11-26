@@ -1,0 +1,252 @@
+// Copyright (c) 2025 Oink Bridge Contributors
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+
+// MIDOINK Token Contract for Midnight Network
+// Wrapped $oink with 1:1 peg, leveraging Midnight's privacy features
+
+// ============================================
+// State Definition
+// ============================================
+
+export ledger MidoinkState {
+  // Token state
+  totalSupply: Field;
+  balances: Map<Bytes, Field>;
+  
+  // Bridge state (must match Cardano locked amount)
+  totalLocked: Field;
+  
+  // Pending operations
+  pendingMints: Map<Bytes, PendingMint>;
+  pendingBurns: Map<Bytes, PendingBurn>;
+  
+  // Validators (public keys)
+  validators: Set<Bytes>;
+  requiredSignatures: Field;
+}
+
+struct PendingMint {
+  lockTxHash: Bytes;
+  recipient: Bytes;
+  amount: Field;
+  signatures: Set<Bytes>;
+  createdAt: Field;
+}
+
+struct PendingBurn {
+  burnId: Bytes;
+  cardanoRecipient: Bytes;
+  amount: Field;
+  burner: Bytes;
+  createdAt: Field;
+}
+
+// ============================================
+// Circuits (Private/Public computation)
+// ============================================
+
+// Initialize contract with validators
+export circuit initialize(
+  validators: Set<Bytes>,
+  requiredSignatures: Field
+): [] {
+  assert requiredSignatures > 0;
+  assert requiredSignatures <= validators.size();
+  
+  ledger.validators = validators;
+  ledger.requiredSignatures = requiredSignatures;
+  ledger.totalSupply = 0;
+  ledger.totalLocked = 0;
+}
+
+// Request mint after locking $oink on Cardano
+export circuit requestMint(
+  lockTxHash: Bytes,
+  recipient: Bytes,
+  amount: Field
+): [] {
+  assert amount > 0;
+  
+  // Ensure no duplicate mint request
+  assert !ledger.pendingMints.has(lockTxHash);
+  
+  // Create pending mint
+  const pending = PendingMint {
+    lockTxHash: lockTxHash,
+    recipient: recipient,
+    amount: amount,
+    signatures: Set<Bytes>{},
+    createdAt: env.blockNumber
+  };
+  
+  ledger.pendingMints.set(lockTxHash, pending);
+}
+
+// Validator approves a mint
+export circuit approveMint(
+  lockTxHash: Bytes,
+  validatorPubKey: Bytes,
+  signature witness validatorSig: Bytes
+): [] {
+  // Verify validator is authorized
+  assert ledger.validators.has(validatorPubKey);
+  
+  // Verify signature (ZK proof that validator approved)
+  assert verifySignature(validatorPubKey, lockTxHash, validatorSig);
+  
+  // Get pending mint
+  assert ledger.pendingMints.has(lockTxHash);
+  const pending = ledger.pendingMints.get(lockTxHash);
+  
+  // Add signature
+  pending.signatures.add(validatorPubKey);
+  ledger.pendingMints.set(lockTxHash, pending);
+  
+  // If enough signatures, execute mint
+  if (pending.signatures.size() >= ledger.requiredSignatures) {
+    executeMint(lockTxHash);
+  }
+}
+
+// Internal: Execute mint after threshold signatures
+circuit executeMint(lockTxHash: Bytes): [] {
+  const pending = ledger.pendingMints.get(lockTxHash);
+  
+  // Mint tokens 1:1
+  const currentBalance = ledger.balances.getOrDefault(pending.recipient, 0);
+  ledger.balances.set(pending.recipient, currentBalance + pending.amount);
+  
+  // Update totals (must maintain 1:1 peg)
+  ledger.totalSupply = ledger.totalSupply + pending.amount;
+  ledger.totalLocked = ledger.totalLocked + pending.amount;
+  
+  // CRITICAL: Verify 1:1 peg integrity
+  assert ledger.totalSupply == ledger.totalLocked;
+  
+  // Remove pending
+  ledger.pendingMints.delete(lockTxHash);
+}
+
+// Burn $midoink to unlock $oink on Cardano
+export circuit burn(
+  amount: Field,
+  cardanoRecipient: Bytes,
+  burner witness burnerKey: Bytes
+): Bytes {
+  assert amount > 0;
+  
+  // Verify burner has sufficient balance
+  const currentBalance = ledger.balances.getOrDefault(burnerKey, 0);
+  assert currentBalance >= amount;
+  
+  // Generate unique burn ID
+  const burnId = hash(burnerKey, cardanoRecipient, amount, env.blockNumber);
+  
+  // Burn tokens
+  ledger.balances.set(burnerKey, currentBalance - amount);
+  ledger.totalSupply = ledger.totalSupply - amount;
+  ledger.totalLocked = ledger.totalLocked - amount;
+  
+  // CRITICAL: Verify 1:1 peg integrity
+  assert ledger.totalSupply == ledger.totalLocked;
+  
+  // Create pending burn for Cardano unlock
+  const pending = PendingBurn {
+    burnId: burnId,
+    cardanoRecipient: cardanoRecipient,
+    amount: amount,
+    burner: burnerKey,
+    createdAt: env.blockNumber
+  };
+  
+  ledger.pendingBurns.set(burnId, pending);
+  
+  return burnId;
+}
+
+// ============================================
+// View Functions (Public reads)
+// ============================================
+
+export circuit balanceOf(owner: Bytes): Field {
+  return ledger.balances.getOrDefault(owner, 0);
+}
+
+export circuit getTotalSupply(): Field {
+  return ledger.totalSupply;
+}
+
+export circuit getTotalLocked(): Field {
+  return ledger.totalLocked;
+}
+
+// Verify 1:1 peg is maintained
+export circuit verifyPeg(): Bool {
+  return ledger.totalSupply == ledger.totalLocked;
+}
+
+export circuit getPendingBurn(burnId: Bytes): PendingBurn {
+  assert ledger.pendingBurns.has(burnId);
+  return ledger.pendingBurns.get(burnId);
+}
+
+// ============================================
+// Transfer (with optional privacy)
+// ============================================
+
+export circuit transfer(
+  to: Bytes,
+  amount: Field,
+  from witness fromKey: Bytes
+): [] {
+  assert amount > 0;
+  
+  // Verify sender has sufficient balance
+  const fromBalance = ledger.balances.getOrDefault(fromKey, 0);
+  assert fromBalance >= amount;
+  
+  // Execute transfer
+  const toBalance = ledger.balances.getOrDefault(to, 0);
+  ledger.balances.set(fromKey, fromBalance - amount);
+  ledger.balances.set(to, toBalance + amount);
+  
+  // Total supply unchanged - peg maintained
+}
+
+// ============================================
+// Helper Functions
+// ============================================
+
+circuit verifySignature(
+  pubKey: Bytes,
+  message: Bytes,
+  signature: Bytes
+): Bool {
+  // Placeholder for actual signature verification
+  // In production, use Midnight's built-in crypto primitives
+  return true; // Simplified for prototype
+}
+
+circuit hash(a: Bytes, b: Bytes, c: Field, d: Field): Bytes {
+  // Placeholder for hash function
+  // In production, use Midnight's Poseidon hash
+  return a; // Simplified for prototype
+}
+
